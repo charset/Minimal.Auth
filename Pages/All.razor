@@ -1,0 +1,35 @@
+﻿@page "/all"
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@* Copy From https://stackoverflow.com/questions/53817373/how-do-i-access-httpcontext-in-server-side-blazor *@
+
+<h3>ClaimsPrincipal Data</h3>
+
+<button @onclick="GetClaimsPrincipalData">Get ClaimsPrincipal Data</button>
+
+<p>@_authMessage</p>
+
+@if (_claims.Count() > 0) {
+    <ul>
+        @foreach (var claim in _claims) {
+            <li>@claim.Type &ndash; @claim.Value</li>
+        }
+    </ul>
+}
+
+@code {
+    private string _authMessage;
+    private IEnumerable<Claim> _claims = Enumerable.Empty<Claim>();
+
+    private async Task GetClaimsPrincipalData() {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated) {
+            _authMessage = $"{user.Identity.Name} is authenticated.";
+            _claims = user.Claims;
+        } else {
+            _authMessage = "The user is NOT authenticated.";
+        }
+    }
+}

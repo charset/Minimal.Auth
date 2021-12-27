@@ -1,0 +1,163 @@
+﻿@inherits LayoutComponentBase
+@inject Services.Auth.CustomStateProvider AuthStateProvider
+@inject MessageService _Message
+@inject NavigationManager Navi
+@inject Blazored.LocalStorage.ILocalStorageService Storage 
+@using Models.Auth
+
+<Layout Style="min-height:100vh;">
+    <Header Style="width:100%;" Class="site-layout-background">
+        <div style="display:flex;justify-content:space-between;flex-wrap:nowrap;">
+            <div class="logo">
+                <img src="/images/Assets/logo.png" height="32" />
+            </div>
+            <div style="color:whitesmoke;">
+                <AuthorizeView>
+                    <Authorized>
+                        <Space Class="auth-bar">
+                            <SpaceItem><label>你好, @context.User?.Identity?.Name!</label></SpaceItem>
+                            <SpaceItem><Button Type="@ButtonType.Dashed" OnClick="OnLogout" Class="trans">登出</Button></SpaceItem>
+                        </Space>
+                    </Authorized>
+                    <NotAuthorized>
+                        <Space Class="auth-bar">
+                            <SpaceItem><Icon Type="sync" Spin Style="@AuthLoading" /></SpaceItem>
+                            <SpaceItem><label>登录凭据:</label></SpaceItem>
+                            <SpaceItem><Input @bind-Value="@username" Placeholder="请输入用户名" Disabled="@IsAuthLoading" /></SpaceItem>
+                            <SpaceItem><label>密码:</label></SpaceItem>
+                            <SpaceItem><InputPassword @bind-Value="@password" Placeholder="请输入密码" Disabled="@IsAuthLoading" /></SpaceItem>
+                            <SpaceItem><Button Type="@ButtonType.Default" OnClick="OnLogin" Disabled="@IsAuthLoading" Class="trans">登录</Button></SpaceItem>
+                        </Space>
+                    </NotAuthorized>
+                    <Authorizing>
+                        <em>正在刷新授权信息...</em>
+                    </Authorizing>
+                </AuthorizeView>
+            </div>
+        </div>
+        <Menu Theme="MenuTheme.Light" Mode="MenuMode.Horizontal" DefaultSelectedKeys=@(new[]{"1"})>
+            <MenuItem Key="1">
+                <MenuItem Key="1">
+                    <Icon Type="home" Theme="outline" />
+                    <span>首页</span>
+                    <MenuLink Href="/" />
+                </MenuItem>
+            </MenuItem>
+            <AuthorizeView Roles="0001">
+                <MenuItem Key="2">
+                    <Icon Type="appstore" Theme="outline" />
+                    <span>ALL</span>
+                    <MenuLink Href="/All" />
+                </MenuItem>
+            </AuthorizeView>
+            <AuthorizeView Roles="0002">
+                <MenuItem Key="5">
+                    <Icon Type="cloud" Theme="outline" />
+                    <span>Adam</span>
+                    <MenuLink Href="/Adam" />
+                </MenuItem>
+            </AuthorizeView>
+            <AuthorizeView Roles="0000">
+                <MenuItem Key="4">
+                    <Icon Type="profile" Theme="outline" />
+                    <span>用户权限</span>
+                    <MenuLink Href="/UserRole" />
+                </MenuItem>
+            </AuthorizeView>
+        </Menu>
+    </Header>
+
+    <Content Class="site-layout" Style="padding:0 50px; margin-top: 64px; ">
+        <div class="site-layout-background" style="padding:10px;min-height:360px;height:calc(100vh - 140px);">
+            <AuthorizeView>
+                <Authorized>@Body</Authorized>
+                <NotAuthorized>
+                    <em>请尝试登录来使用管理台功能</em>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </Content>
+
+    <Footer Style="text-align: center;">AntDesign@Blazor | AspNetCore</Footer>
+</Layout>
+
+@code {
+    string username, password;
+    bool IsAuthLoading = false; string AuthLoading { get => $"visibility:{(IsAuthLoading ? "show" : "hidden")}"; }
+
+    async Task OnLogin() {
+        IsAuthLoading = true;
+        try {
+            var response = await AuthStateProvider.Login(new LoginRequest() {
+                UserId = username, Passwd =password
+            });
+            password = string.Empty;
+            if (response.IsSuccess) {
+                await _Message.Success("成功登录.");
+            } else {
+                await _Message.Warning("登录失败");
+            }
+        } catch (Exception ex) {
+            await _Message.Error(ex.Message);
+        } finally {
+            IsAuthLoading = false;
+        }
+    }
+
+    async Task OnLogout() {
+        try {
+            var response = await AuthStateProvider.Logout(new LogoutRequest() {
+                UserId = username, Token = await Storage.GetItemAsync<string>("Token")
+            });
+            if (response.IsSuccess) {
+                await _Message.Success("你已签退.");
+                username = password = string.Empty;
+                Navi.NavigateTo("/");
+            } else {
+                await _Message.Warning("发生了状况. 请等待5分钟后再试.");
+            }
+        } catch (Exception ex) {
+            await _Message.Error(ex.Message);
+        }
+
+    }
+}
+
+
+<style>
+    div.logo {
+        height: 32px;
+        background: rgba(255, 255, 255, 0.2);
+        margin: 8px;
+        overflow: hidden;
+        line-height: 0;
+    }
+
+    .site-layout .site-layout-background {
+        background: #fff;
+    }
+
+    .ant-layout-header {
+        background-color: #fff;
+    }
+
+    .ant-layout-sider {
+        background-color: #fff;
+    }
+
+    .ant-layout-sider-trigger {
+        background: #fff;
+        color: Highlight;
+    }
+
+    .auth-bar {
+        display: flex;
+        color: black;
+        justify-content: flex-end;
+        margin-right: 16px;
+    }
+
+    .trans {
+        opacity: 0.7;
+    }
+</style>

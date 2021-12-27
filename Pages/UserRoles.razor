@@ -1,0 +1,163 @@
+﻿@page "/UserRole"
+@using Minimal.Auth.Models.Auth
+@inject Auth.MockData.UserService Service
+@inject MessageService Message
+@inject ModalService Modal
+
+<Modal Visible="@modalVisible" OnCancel="e => modalVisible = false" Title="@modalTitle" OnOk="OnModalOK" DestroyOnClose MaskClosable="false">
+    <Form Model="@action" LabelCol="@StaticHelper.GetColLayoutParam(4)" WrapperCol="@StaticHelper.GetColLayoutParam(8)">
+        <FormItem Label="员工号">
+            <Input @bind-Value="@action.UserId" Disabled="@(action.Operation != OpAction.Create)" />
+        </FormItem>
+        <FormItem Label="姓名">
+            <Input @bind-Value="@action.Name" Disabled="@(action.Operation == OpAction.Delete)" />
+        </FormItem>
+        <FormItem Label="权限">
+            <CheckboxGroup @bind-Value="@action.Roles" Options="@roleOptions" OnChange="OnRolesChange" Disabled="@(action.Operation == OpAction.Delete)" />
+        </FormItem>
+    </Form>
+</Modal>
+
+<Divider Style="font-size:24px;font-weight:bold">用户和权限管理</Divider>
+@if (userList == null) {
+    <em>装载中...</em>
+} else {
+    <div style="margin: 20px auto 20px 20px;">
+        <Button Type="@ButtonType.Primary" OnClick="AddUser"><Icon Type="user"></Icon>新增用户</Button>
+    </div>
+    <Table DataSource="@userList" Loading="@tableLoading" HidePagination>
+        <Column Field="@context.UserId" Title="员工号">
+            <em>@context.UserId</em>
+        </Column>
+        <Column Field="@context.UserName" Title="姓名">@context.UserName</Column>
+        <Column Field="@context.Title" Title="岗位">@context.Title</Column>
+        <Column Field="@context.State" Title="权限">
+            @foreach (var assignment in assignments[context.UserId]) {
+                switch (assignment) {
+                    case "0000":
+                        <Tag Color="red-inverse" Icon="tool">管理员</Tag>;
+                        break;
+                    case "0001":
+                        <Tag Color="green-inverse" Icon="user">录入</Tag>;
+                        break;
+                    case "0002":
+                        <Tag Color="orange-inverse" Icon="tag">审核</Tag>;
+                        break;
+                }
+            }
+        </Column>
+        <Column Field="@context.State" Title="状态">
+            @switch (context.State) {
+                case State.Initial:
+                    <Tag Color="lime">初始</Tag>;
+                    break;
+                case State.Active:
+                    <Tag Color="blue-inverse" Icon="check-circle">在职</Tag>;
+                    break;
+                case State.Deleted:
+                    <Tag Color="red-inverse" Icon="close">禁止</Tag>;
+                    break;
+            }
+        </Column>
+        <ActionColumn>
+            <Space>
+                <SpaceItem>
+                    <Button Type="@ButtonType.Link" OnClick="e=>ModifyUser(context)">修改</Button>
+                </SpaceItem>
+                <SpaceItem>
+                    <Button Type="@ButtonType.Dashed" OnClick="e=>DeleteUser(context)">删除</Button>
+                </SpaceItem>
+            </Space>
+        </ActionColumn>
+    </Table>
+}
+@code {
+    Dictionary<string, UserInfo> users;
+    Dictionary<string, Role> roles;
+    Dictionary<string, string[]> assignments;
+
+    List<UserInfo> userList { get => users?.Values.ToList(); }
+    CheckboxOption[] roleOptions = { new CheckboxOption { Value = "0000", Label = "管理员" }, new CheckboxOption { Value = "0001", Label = "录入" }, new CheckboxOption { Value = "0002", Label = "审核" } };
+
+    UserAction action = new UserAction();
+
+    private bool tableLoading = false, modalVisible = false;
+    private OpAction operation = OpAction.Create;
+    string modalTitle {
+        get {
+            switch (operation) {
+                case OpAction.Create: return "新增";
+                case OpAction.Edit: return "修改";
+                case OpAction.Delete: return "删除";
+            }
+            return "未知操作";
+        }
+    }
+
+    private void ModifyUser(UserInfo info) {
+        action = new UserAction() {
+            Name = info.UserName, UserId = info.UserId, Operation = OpAction.Edit, Roles = assignments[info.UserId]
+        };
+        operation = OpAction.Edit;
+        StateHasChanged();
+        modalVisible = true;
+    }
+
+    private void DeleteUser(UserInfo info) {
+        action = new UserAction() {
+            Name = info.UserName, UserId = info.UserId, Operation = OpAction.Delete, Roles = assignments[info.UserId]
+        };
+        operation = OpAction.Delete;
+        StateHasChanged();
+        modalVisible = true;
+    }
+
+    private void AddUser() {
+        action = new UserAction();
+        action.Operation = operation = OpAction.Create;
+        StateHasChanged();
+        modalVisible = true;
+    }
+
+    private void OnRolesChange(string[] values) {
+        Console.WriteLine(string.Join(",", values) + "visible=" + modalVisible);
+    }
+
+    private async Task OnModalOK() {
+        try {
+            var db = Service.ExecuteUserAction(action);
+            if (db.IsSuccess) {
+                await Message.Success($"{modalTitle} 操作成功! 刷新页面中...");
+                await GetUserRoleManageData();
+            } else {
+                await Message.Warn(db.Message);
+            }
+        } catch (Exception ex) {
+            await Message.Error(ex.Message);
+        } finally {
+            modalVisible = false;
+        }
+    }
+
+    protected override async Task OnInitializedAsync() {
+        await GetUserRoleManageData();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task GetUserRoleManageData() {
+        tableLoading = true;
+        try {
+            var response = Service.GetUserRoleManageData();
+            if (response!=null) {
+                users = response.Users;
+                assignments = response.Assignments;
+            } else {
+                await Message.Warn("出错啦 ~");
+            }
+        } catch (Exception ex) {
+            await Message.Error(ex.Message);
+        } finally {
+            tableLoading = false;
+        }
+    }
+}
