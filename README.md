@@ -3,7 +3,7 @@
 
 I have an article written in Chinese to show minimal authentication logic. The code uses `Controller` as `Authentication Web API`. 
 
-[The article: Blazor 极简登录模型]: https://www.cnblogs.com/charset/p/14362066.html	"Blazor 极简登录模型"
+[Blazor极简登录模型](https://www.cnblogs.com/charset/p/14362066.html "Blazor 极简登录模型")	
 
 When `.NET 6` launched up, I am eager to migrate controller web APIs to `Minimal API` which brings easy-to-use to us. One can write an extension class to wrap all details and throws controllers away.
 
@@ -20,3 +20,5 @@ When `.NET 6` launched up, I am eager to migrate controller web APIs to `Minimal
 ## `Authentication`
 
 Authentication logic does not change because we just implement `AuthenticationStateProvider`.
+
+**WARNING** Most of the project code is only for demo and not for product use. 
